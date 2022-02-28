@@ -1,0 +1,18 @@
+SELECT rb.report_base_id, rbt.report_name, rbdf.field_id, ft.field_name, rt.report_type_desc, mt.module_name, lt.level_name, usrc.user_first_name as created_by, usru.user_first_name as updated_by,rb.update_date 
+FROM tblReportBaseDisplayField(NOLOCK) rbdf 
+JOIN tblReportBase(NOLOCK) rb ON rb.report_base_id = rbdf.report_base_id 
+JOIN tblReportType(NOLOCK) rt ON rt.report_type_id = rb.report_type_id 
+JOIN tblReportBaseTranslation(NOLOCK) rbt ON rbt.report_base_id = rb.report_base_id 
+JOIN tblFieldTranslation(NOLOCK) ft ON ft.field_id = rbdf.field_id 
+JOIN tblIVFieldDef(NOLOCK) fd ON fd.field_id = ft.field_id 
+JOIN tblLevel(NOLOCK) l ON fd.level_id = l.level_id 
+JOIN tblModule(NOLOCK) m ON l.module_id = m.module_id
+join tbluser(nolock) usrc on rb.create_login = usrc.user_id 
+join tbluser(nolock) usru on rb.update_login = usru.user_id 
+JOIN dbo.tblLevelTranslation lt WITH ( NOLOCK ) ON l.level_id = lt.level_id 
+JOIN dbo.tblModuleTranslation mt WITH ( NOLOCK ) ON mt.module_id = m.module_id 
+--WHERE rbdf.field_id IN ()
+where fd.guid = ''
+--where rt.report_type_desc = 'Global' 
+--where ft.field_name like '%bia start date%'
+ORDER BY rbt.report_name ASC, ft.field_name asc
