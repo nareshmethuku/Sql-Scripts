@@ -1,0 +1,3 @@
+SELECT        group_id, group_name, guid, ldap_config_id , * FROM          tblGroup
+where group_name like '%ballastpoint erm%' --and datepart(year, create_date ) < datepart(year, getdate())
+order by create_date 
