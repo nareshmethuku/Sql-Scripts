@@ -1,0 +1,290 @@
+/**********************************************************************************************************/
+/*
+Name			
+Missing Scheduled Jobs
+
+Filename		
+MissingScheduledJobs_20201117.sql
+
+Description		
+This script looks for active scheduled activities that missing an entry in the job table. 
+Activities in this state will never run.
+It looks for 
+	- Data Feeds
+	- Campaigns
+	- Application Builder -> Schedules
+	- Notifications
+	- System Jobs
+
+This script is a work in progress, there may be false positives or missed situations.
+
+Instructions	
+Run script
+
+Notes
+This is not an officially RSA supported script. 
+It is provided as is. 
+Suitable precautions should be taken for your environment such as, but not limited to, backing up any related data.
+
+Change History
+20200508	Initial Release
+20200514	Modifications for additional campaign, scheduled rule and notification filters
+20201117	Added 6.9.0 system jobs, combined to single results
+*/
+/**********************************************************************************************************/
+--VARIABLES TO MODIFY
+
+
+/**********************************************************************************************************/
+--CHANGE NOTHING BELOW HERE
+
+
+SET NOCOUNT ON
+
+IF OBJECT_ID('tempdb..#moduleLevel') IS NOT NULL DROP TABLE #moduleLevel
+IF OBJECT_ID('tempdb..#missingJobList') IS NOT NULL DROP TABLE #missingJobList
+
+
+CREATE TABLE #moduleLevel (module_id INT, level_id INT, module_name NVARCHAR(255), level_name NVARCHAR(255), module_type VARCHAR(10))
+
+CREATE TABLE #missingJobList (schedule_guid UNIQUEIDENTIFIER, object_type NVARCHAR(255), object_id INT, object_name NVARCHAR(255), object_guid UNIQUEIDENTIFIER, level_id INT)
+
+INSERT INTO #moduleLevel (module_id, level_id, module_name, level_name, module_type)
+SELECT m.module_id, l.level_id, mt.module_name, lt.level_name, CASE  m.module_type_id WHEN 2 THEN 'App' WHEN 7 THEN 'Ques' ELSE NULL END FROM dbo.tblModule m 
+JOIN dbo.tblLevel l ON l.module_id = m.module_id
+JOIN dbo.tblModuleTranslation mt ON mt.module_id = m.module_id AND mt.is_default = 1
+JOIN dbo.tblLevelTranslation lt ON lt.level_id = l.level_id AND lt.is_default = 1
+LEFT JOIN dbo.tblLicensedObject lo ON lo.guid = m.guid
+WHERE m.system = 0 OR (m.system =1 AND m.is_deprecated = 1 AND m.keep_licensed = 1) OR lo.guid IS NOT NULL
+
+INSERT INTO #missingJobList (schedule_guid, object_type, object_id, object_name, object_guid, level_id)
+SELECT d.scheduled_guid, 'Data Feed', d.datafeed_id, d.datafeed_name, d.guid, d.level_id 
+FROM dbo.tblDatafeed d 
+LEFT JOIN dbo.tblAsyncJobQueue ajq ON ajq.ScheduleId = d.scheduled_guid
+WHERE d.scheduled_guid IS NOT NULL
+AND ajq.ScheduleId IS NULL 
+AND d.is_active = 1
+AND d.datafeed_type_id = 1
+
+INSERT INTO #missingJobList (schedule_guid, object_type, object_id, object_name, object_guid, level_id)
+SELECT d.scheduled_guid, 'Campaign' , d.campaign_id, d.campaign_name , d.guid, m.level_id
+FROM dbo.tblCampaign d 
+JOIN dbo.tbllevel m ON m.module_id = d.module_id
+LEFT JOIN dbo.tblAsyncJobQueue ajq ON ajq.ScheduleId = d.scheduled_guid
+WHERE d.scheduled_guid IS NOT NULL
+AND ajq.ScheduleId IS NULL 
+AND d.is_active = 1
+AND d.campaign_type_id = 3
+
+INSERT INTO #missingJobList (schedule_guid, object_type, object_id, object_name, object_guid, level_id)
+SELECT d.scheduled_guid, 'Scheduled Rule-'+srt.schedule_rule_type_name, d.schedule_rule_id, d.schedule_rule_name, d.guid, d.level_id
+FROM dbo.tblScheduleRule d 
+--JOIN dbo.tblScheduleRuleStatus srs ON srs.schedule_rule_status_id = d.schedule_rule_status_id
+JOIN dbo.tblScheduleRuleType srt ON srt.schedule_rule_type_id = d.schedule_rule_type_id
+LEFT JOIN dbo.tblAsyncJobQueue ajq ON ajq.ScheduleId = d.scheduled_guid
+WHERE d.scheduled_guid IS NOT NULL
+AND ajq.ScheduleId IS NULL 
+AND d.schedule_rule_status_id = 2
+
+INSERT INTO #missingJobList (schedule_guid, object_type, object_id, object_name, object_guid, level_id)
+SELECT d.scheduled_guid, 'Notification-'+s.subsystem_name, d.notification_template_id, d.template_name, d.guid, d.level_id
+FROM dbo.tblNotificationTemplate d 
+LEFT JOIN dbo.tblSubsystem s ON s.subsystem_id = d.subscription_management_subsystem_id
+LEFT JOIN dbo.tblAsyncJobQueue ajq ON ajq.ScheduleId = d.scheduled_guid
+WHERE d.scheduled_guid IS NOT NULL
+AND ajq.ScheduleId IS NULL 
+AND d.is_active = 1
+AND d.interval_type_id <> 1
+
+--tblDatafeed
+--tblCampaign
+--tblScheduleRule
+--tblNotificationTemplate
+
+
+
+IF OBJECT_ID('tempdb..#versionJobs') IS NOT NULL DROP TABLE #versionJobs
+
+CREATE TABLE #versionJobs
+(
+versionMatch VARCHAR(32)
+, jobType VARCHAR(256)
+)
+
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.JobPackages.CalculationService.DeleteContentMarkedAsDirtyWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.ArcherConfigurationReport.GenerateReportJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.AutomaticUserAccountDeactivationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.ContentHistoryLogCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.DeletedMetaDataCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.DiscussionForumExpirationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.FindingsQueueCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.OrphanSubformContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.PrecomputeTaskPermissionsCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.RepositoryFileCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.SessionCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.TrendingContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.UpdateContentStatisticsJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.WF4.AdminDashboardJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.WF4.ContentWorkflowAuditCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.WF4.EncryptedFieldHistoryDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.WF4.ScheduleEncryptedFieldValueExpressionDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.WF4.SystemCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.WF4.Telemetry.TelemetryJobWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.0', 'ArcherTech.Kernel.Jobs.WorkflowCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.JobPackages.CalculationService.DeleteContentMarkedAsDirtyWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.ArcherConfigurationReport.GenerateReportJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.AutomaticUserAccountDeactivationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.ContentHistoryLogCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.DeletedMetaDataCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.DiscussionForumExpirationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.FindingsQueueCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.OrphanSubformContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.PrecomputeTaskPermissionsCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.RepositoryFileCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.SessionCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.TrendingContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.UpdateContentStatisticsJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.WF4.AdminDashboardJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.WF4.ContentWorkflowAuditCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.WF4.EncryptedFieldHistoryDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.WF4.ScheduleEncryptedFieldValueExpressionDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.WF4.SystemCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.WF4.Telemetry.TelemetryJobWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.4.1', 'ArcherTech.Kernel.Jobs.WorkflowCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.DataFeed.Workflows.ScheduledDataFeedWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.JobPackages.CalculationService.DeleteContentMarkedAsDirtyWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.ArcherConfigurationReport.GenerateReportJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.AutomaticUserAccountDeactivationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.ContentHistoryLogCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.DeletedMetaDataCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.DiscussionForumExpirationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.FindingsQueueCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.OrphanSubformContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.PrecomputeTaskPermissionsCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.RepositoryFileCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.SessionCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.TrendingContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.UpdateContentStatisticsJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.WF4.AdminDashboardJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.WF4.ContentWorkflowAuditCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.WF4.EncryptedFieldHistoryDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.WF4.ScheduleEncryptedFieldValueExpressionDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.WF4.SystemCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.WF4.Telemetry.TelemetryJobWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.WF4.WorkflowUpdateJobsSummaryCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.5.0', 'ArcherTech.Kernel.Jobs.WorkflowCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.JobPackages.CalculationService.DeleteContentMarkedAsDirtyWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.ArcherConfigurationReport.GenerateReportJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.AutomaticUserAccountDeactivationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.ContentHistoryLogCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.DeletedMetaDataCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.DiscussionForumExpirationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.FindingsQueueCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.OrphanSubformContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.PrecomputeTaskPermissionsCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.RepositoryFileCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.SessionCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.TrendingContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.UpdateContentStatisticsJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.WF4.AdminDashboardJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.WF4.ContentWorkflowAuditCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.WF4.EncryptedFieldHistoryDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.WF4.ScheduleEncryptedFieldValueExpressionDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.WF4.SystemCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.WF4.Telemetry.TelemetryJobWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.WF4.WorkflowUpdateJobsSummaryCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.6.0', 'ArcherTech.Kernel.Jobs.WorkflowCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.JobPackages.CalculationService.DeleteContentMarkedAsDirtyWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.ArcherConfigurationReport.GenerateReportJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.AutomaticUserAccountDeactivationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.ContentHistoryLogCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.DeletedMetaDataCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.DiscussionForumExpirationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.FindingsQueueCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.OrphanSubformContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.PrecomputeTaskPermissionsCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.RepositoryFileCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.SessionCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.TrendingContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.UpdateContentStatisticsJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.WF4.AdminDashboardJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.WF4.ArchiveExpiredDevAppsJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.WF4.ContentWorkflowAuditCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.WF4.EncryptedFieldHistoryDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.WF4.ScheduleEncryptedFieldValueExpressionDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.WF4.SystemCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.WF4.Telemetry.TelemetryJobWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.WF4.WorkflowUpdateJobsSummaryCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.7.0', 'ArcherTech.Kernel.Jobs.WorkflowCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.JobPackages.CalculationService.DeleteContentMarkedAsDirtyWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.ArcherConfigurationReport.GenerateReportJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.AutomaticUserAccountDeactivationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.ContentHistoryLogCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.DeletedMetaDataCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.DiscussionForumExpirationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.FindingsQueueCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.OrphanSubformContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.PrecomputeTaskPermissionsCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.RepositoryFileCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.SessionCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.TrendingContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.UpdateContentStatisticsJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.WF4.AdminDashboardJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.WF4.ArchiveExpiredDevAppsJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.WF4.CleanupSSOExpiredSessionsJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.WF4.CleanupSSOExpiredTokensJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.WF4.ContentWorkflowAuditCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.WF4.EncryptedFieldHistoryDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.WF4.ScheduleEncryptedFieldValueExpressionDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.WF4.SystemCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.WF4.Telemetry.TelemetryJobWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.WF4.WorkflowUpdateJobsSummaryCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.8.0', 'ArcherTech.Kernel.Jobs.WorkflowCleanupJobHandler') 
+
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.JobPackages.CalculationService.DeleteContentMarkedAsDirtyWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.ArcherConfigurationReport.GenerateReportJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.AutomaticUserAccountDeactivationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.ContentHistoryLogCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.DeletedMetaDataCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.DiscussionForumExpirationJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.FindingsQueueCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.OrphanSubformContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.PrecomputeTaskPermissionsCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.RepositoryFileCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.SessionCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.TrendingContentCleanupJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.UpdateContentStatisticsJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.WF4.AdminDashboardJobHandler') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.WF4.ArchiveExpiredDevAppsJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.WF4.CleanupSSOExpiredSessionsJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.WF4.CleanupSSOExpiredTokensJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.WF4.ContentWorkflowAuditCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.WF4.EncryptedFieldHistoryDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.WF4.ScheduleEncryptedFieldValueExpressionDataToggleActivity') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.WF4.SystemCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.WF4.Telemetry.TelemetryJobWorkflow') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.WF4.WorkflowUpdateJobsSummaryCleanupJob') 
+INSERT INTO #versionJobs (versionMatch, jobType) VALUES ('6.9.0', 'ArcherTech.Kernel.Jobs.WorkflowCleanupJobHandler') 
+
+DECLARE @version NVARCHAR(32) 
+SELECT @version = a.application_version FROM dbo.tblApplication a
+
+
+INSERT INTO #missingJobList (schedule_guid, object_type, object_id, object_name, object_guid, level_id)
+SELECT NULL, 'System Job-'+vj.versionMatch, NULL, vj.jobType 'MissingSystemJob', NULL, NULL FROM #versionJobs vj
+LEFT JOIN dbo.tblAsyncJobQueue ajq ON ajq.JobType LIKE vj.jobType + '%'
+WHERE @version LIKE vj.versionMatch +'%'  
+AND ajq.JobId IS NULL 
+
+SELECT ml.module_id
+     , ml.level_id
+     , ml.module_name
+     , ml.level_name
+     , ml.module_type
+	 , mjl.schedule_guid
+    , mjl.object_type
+    , mjl.object_id
+    , mjl.object_name
+    , mjl.object_guid
+	 FROM #missingJobList mjl 
+LEFT JOIN #moduleLevel ml ON ml.level_id = mjl.level_id
