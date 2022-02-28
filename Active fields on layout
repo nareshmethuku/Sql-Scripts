@@ -1,0 +1,24 @@
+--Fields  with on-layout off-layout columns, check if works correctly
+-- If the column "layout_section_name" says "Default" it means that it is Off layout
+-- The column "Active" can be commented to show all fields ( Active or inactive)
+
+SELECT tblModuleTranslation.module_name AS Application, tblLevelTranslation.level_name AS Level,
+tblFieldTranslation.field_name AS Field, tblIVFieldType.field_type_name AS Type
+, tblFieldTranslation.field_desc
+, tblIVFieldDef.active AS Active
+, lst.layout_section_name
+                  			  
+FROM     tblIVFieldDef LEFT OUTER JOIN
+                  tblIVFieldType ON tblIVFieldDef.field_type_id = tblIVFieldType.field_type_id LEFT OUTER JOIN
+                  tblLevel ON tblIVFieldDef.level_id = tblLevel.level_id LEFT OUTER JOIN
+                  tblLevelTranslation ON tblLevel.level_id = tblLevelTranslation.level_id LEFT OUTER JOIN
+                  tblModule ON tblLevel.module_id = tblModule.module_id LEFT OUTER JOIN
+                  tblModuleTranslation ON tblModule.module_id = tblModuleTranslation.module_id LEFT OUTER JOIN
+                  tblFieldTranslation ON tblIVFieldDef.field_id = tblFieldTranslation.field_id left join 
+				  tblIVLayoutObject lo on tblFieldTranslation.field_id = lo.field_id left join 
+				  tblIVLayoutSectionTranslation lst on lo.layout_section_id = lst.layout_section_id
+
+WHERE (tblModuleTranslation.module_name = N'Control procedures') 
+OR (tblModuleTranslation.module_name = N'Control Standards') 
+AND Active = 1 
+order by Application, Level , Field 
