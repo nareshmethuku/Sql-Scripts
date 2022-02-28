@@ -1,0 +1,144 @@
+/*Field  - Begin*/
+DROP TABLE IF EXISTS #tmp_field_attributes 
+CREATE TABLE #tmp_field_attributes ( field_id int, required bit, search_default_field bit, is_inline_edit_enabled bit, calculated bit, display_control_name nVARCHAR(128))
+
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , null , null , DC.display_control_name	from	tblIVFieldDefAttachment AS FD WITH (NOLOCK) INNER JOIN tblIVDisplayControl AS DC WITH (NOLOCK) ON FD.display_control_id = DC.display_control_id
+INSERT INTO #tmp_field_attributes	select FD.field_id , null , FD.search_default_field , null , null , null	from	tblIVFieldDefCAST AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , null , FD.search_default_field , null , null , null	from	tblIVFieldDefContentAccessHistory AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , FD.is_inline_edit_enabled , FD.calculated , DC.display_control_name	from	tblIVFieldDefCrossRef AS FD WITH (NOLOCK) INNER JOIN tblIVDisplayControl AS DC WITH (NOLOCK) ON FD.display_control_id = DC.display_control_id
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , FD.is_inline_edit_enabled , FD.calculated , DC.display_control_name	from	tblIVFieldDefDate AS FD WITH (NOLOCK) INNER JOIN tblIVDisplayControl AS DC WITH (NOLOCK) ON FD.display_control_id = DC.display_control_id
+INSERT INTO #tmp_field_attributes	select FD.field_id , null , null , null , null , DC.display_control_name	from	tblIVFieldDefDiscussion AS FD WITH (NOLOCK) INNER JOIN tblIVDisplayControl AS DC WITH (NOLOCK) ON FD.display_control_id = DC.display_control_id
+/*INSERT INTO #tmp_field_attributes	select FD.field_id , null , null , null , null , null	from	tblIVFieldDefDisplayAttribute AS FD WITH (NOLOCK)*/
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , null , null , null	from	tblIVFieldDefExternalLink AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , null , FD.search_default_field , null , null , null	from	tblIVFieldDefFirstPublished AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , null , FD.search_default_field , null , null , DC.display_control_name	from	tblIVFieldDefHistoryLog AS FD WITH (NOLOCK) INNER JOIN tblIVDisplayControl AS DC WITH (NOLOCK) ON FD.display_control_id = DC.display_control_id
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , null , null , null	from	tblIVFieldDefImage AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , null , null , null	from	tblIVFieldDefIPAddress AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , null , FD.search_default_field , null , null , null	from	tblIVFieldDefLastUpdated AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , null , null , null	from	tblIVFieldDefMatrix AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , null , null , null	from	tblIVFieldDefMultiReference AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , FD.is_inline_edit_enabled , FD.calculated , null	from	tblIVFieldDefNumeric AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , null , FD.search_default_field , null , null , null	from	tblIVFieldDefQuestionReference AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , null , FD.search_default_field , null , null , null	from	tblIVFieldDefRecordStatus AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , FD.is_inline_edit_enabled , null , DC.display_control_name	from	tblIVFieldDefRelatedRecord AS FD WITH (NOLOCK) INNER JOIN tblIVDisplayControl AS DC WITH (NOLOCK) ON FD.display_control_id = DC.display_control_id
+INSERT INTO #tmp_field_attributes	select FD.field_id , null , FD.search_default_field , null , null , DC.display_control_name	from	tblIVFieldDefScheduler AS FD WITH (NOLOCK) INNER JOIN tblIVDisplayControl AS DC WITH (NOLOCK) ON FD.display_control_id = DC.display_control_id
+INSERT INTO #tmp_field_attributes	select FD.field_id , null , FD.search_default_field , null , null , null	from	tblIVFieldDefScoreCard AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , null , null , null	from	tblIVFieldDefSubform AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , FD.is_inline_edit_enabled , FD.calculated , DC.display_control_name	from	tblIVFieldDefText AS FD WITH (NOLOCK) INNER JOIN tblIVDisplayControl AS DC WITH (NOLOCK) ON FD.display_control_id = DC.display_control_id
+INSERT INTO #tmp_field_attributes	select FD.field_id , null , FD.search_default_field , null , null , null	from	tblIVFieldDefTrackingId AS FD WITH (NOLOCK)
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , FD.is_inline_edit_enabled , null , DC.display_control_name	from	tblIVFieldDefUserGroup AS FD WITH (NOLOCK) INNER JOIN tblIVDisplayControl AS DC WITH (NOLOCK) ON FD.display_control_id = DC.display_control_id
+INSERT INTO #tmp_field_attributes	select FD.field_id , FD.required , FD.search_default_field , FD.is_inline_edit_enabled , FD.calculated , DC.display_control_name	from	tblIVFieldDefValueList AS FD WITH (NOLOCK) INNER JOIN tblIVDisplayControl AS DC WITH (NOLOCK) ON FD.display_control_id = DC.display_control_id
+INSERT INTO #tmp_field_attributes	select FD.field_id , null , FD.search_default_field , null , null , null	from	tblIVFieldDefVoting AS FD WITH (NOLOCK)
+
+/*Private Field Users/Groups - Begin*/
+DROP TABLE IF EXISTS #tmp_private_fields
+CREATE TABLE #tmp_private_fields( field_id int, users_groups nVARCHAR(256))
+
+INSERT INTO #tmp_private_fields SELECT XFG.field_id, G.group_name FROM     tblGroup AS G WITH (NOLOCK) INNER JOIN tblXIVFieldDefGroups AS XFG WITH (NOLOCK) ON G.group_id = XFG.group_id
+INSERT INTO #tmp_private_fields SELECT XFU.field_id, U.user_last_name + ',' + U.user_first_name AS Name FROM tblUser AS U WITH (NOLOCK) INNER JOIN tblXIVFieldDefUsers AS XFU WITH (NOLOCK) ON U.user_id = XFU.user_id
+/*Private Field Users/Groups - End*/
+
+/*Cross-Ref/Related Recs/Sub-Form Lookup Fields - Begin*/
+DROP TABLE IF EXISTS #tmp_crossref_relatedrec_subform_lookup
+CREATE TABLE #tmp_crossref_relatedrec_subform_lookup ( field_id int, display_fields nVARCHAR(2000))
+
+INSERT INTO #tmp_crossref_relatedrec_subform_lookup  SELECT field_id, STUFF
+                      ((SELECT '; ' + FT.field_name AS 'data()'
+                        FROM      tblReportBaseDisplayField AS RLF WITH (NOLOCK) INNER JOIN
+                                          tblIVFieldDef AS FD WITH (NOLOCK) ON RLF.field_id = FD.field_id INNER JOIN
+                                          tblFieldTranslation AS FT WITH (NOLOCK) ON FD.field_id = FT.field_id
+                        WHERE   (RLF.report_base_id = FDC.report_base_id) ORDER BY RLF.display_order FOR XML PATH('')), 1, 2, '') 
+FROM     tblIVFieldDefCrossRef AS FDC WITH (NOLOCK)
+GROUP BY field_id, report_base_id
+
+INSERT INTO #tmp_crossref_relatedrec_subform_lookup SELECT field_id, STUFF
+                      ((SELECT '; ' + FT.field_name AS 'data()'
+                        FROM      tblReportBaseDisplayField AS RLF WITH (NOLOCK) INNER JOIN
+                                          tblIVFieldDef AS FD WITH (NOLOCK) ON RLF.field_id = FD.field_id INNER JOIN
+                                          tblFieldTranslation AS FT WITH (NOLOCK) ON FD.field_id = FT.field_id
+                        WHERE   (RLF.report_base_id = FDR.report_base_id) ORDER BY RLF.display_order FOR XML PATH('')), 1, 2, '') 
+FROM     tblIVFieldDefRelatedRecord AS FDR WITH (NOLOCK)
+GROUP BY field_id, report_base_id
+/*Cross-Ref/Related Recs/Sub-Form Lookup Fields - End*/
+
+/*OnLayout Fields - Begin*/
+DROP TABLE IF EXISTS #tmp_on_layout
+CREATE TABLE #tmp_on_layout ( field_id int, layout_section nVARCHAR(2000))
+INSERT INTO #tmp_on_layout SELECT field_id, STUFF
+                      ((SELECT '; ' + LM.layout_module_name + ':' + LST.layout_section_name AS 'data()'
+                        FROM      tblIVLayoutModule AS LM WITH (NOLOCK) INNER JOIN
+                                          tblIVLayoutTab AS LT WITH (NOLOCK) ON LM.layout_module_id = LT.layout_module_id INNER JOIN
+                                          tblIVLayoutObject AS LO WITH (NOLOCK) INNER JOIN
+                                          tblIVLayoutObjectTranslation AS LOT WITH (NOLOCK) ON LO.layout_obj_id = LOT.layout_obj_id INNER JOIN
+                                          tblIVLayoutSection AS LS WITH (NOLOCK) ON LO.layout_section_id = LS.layout_section_id ON LT.layout_tab_id = LS.layout_tab_id INNER JOIN
+                                          tblIVLayoutTabTranslation AS LTT WITH (NOLOCK) ON LT.layout_tab_id = LTT.layout_tab_id INNER JOIN
+                                          tblIVLayoutSectionTranslation AS LST WITH (NOLOCK) ON LS.layout_section_id = LST.layout_section_id
+                        WHERE   (LM.is_active = 1) AND (LTT.layout_tab_name <> N'Available') AND (LO.field_id = FD.field_id) FOR XML PATH('')), 1, 2, '')
+FROM     tblIVFieldDef AS FD WITH (NOLOCK)
+/*OnLayout Fields - End*/
+
+SELECT MT.module_name AS [Aplication Name], 
+				  LT.level_name AS [Level Name], 
+				  FT.field_name AS [Field Name],  FT.Create_Date AS [Create DateTime],
+				  FTP.field_type_name AS [Field Type], 
+				  CASE WHEN FD.active = 1 THEN 'Active' ELSE 'Inactive' END AS Active, 
+				  FD.field_id AS [Field ID], 
+				  UPPER(FD.guid) AS GUID, 
+				  ISNULL(TMP_FA.display_control_name, 'N/A') AS [Display Type],
+                  CASE WHEN TMP_FA.required = 1 THEN 'Yes' WHEN TMP_FA.required = 0 THEN 'No' ELSE 'N/A' END AS Required, 
+				  CASE WHEN FD.search_results = 1 THEN 'Yes' ELSE 'No' END AS [Search Results], 				  
+				  CASE WHEN TMP_FA.search_default_field = 1 THEN 'Yes' ELSE 'No' END AS [Default Search Field], 
+				  CASE WHEN TMP_FA.is_inline_edit_enabled = 1 THEN 'Yes' WHEN TMP_FA.is_inline_edit_enabled = 0 THEN 'No' ELSE 'N/A' END AS [In-Line Editable], 
+				  CASE WHEN TMP_OL.layout_section IS NULL THEN 'No' ELSE 'Yes' END AS [On Layout],
+				  ISNULL(TMP_OL.layout_section, 'N/A') AS [Layout:Section], 
+				  ISNULL(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE( FT.short_description,
+					'<html>', ''),
+					'</html>', ''),
+					'<head>', ''),
+					'</head>', ''),
+					'<body>', ''),
+					'</body>', ''),
+					'<p style="margin: 0px">', ''),
+					'</p>', ''), 
+					'<span style="margin: 0px">', ''),
+					'?</span>', ''), 
+					'?<br />', ''),
+					CHAR(9), ' '), 
+					CHAR(10), ' '), 
+					CHAR(13), ' '), 
+					'') AS Description,
+				  CASE WHEN TMP_FA.calculated = 1 THEN 'Yes' WHEN TMP_FA.calculated = 0 THEN 'No' ELSE 'N/A' END AS [Calculated Field],
+				  '' AS [Business Logic],
+                  CASE WHEN FD.is_private = 1 THEN 'Private' ELSE 'Public' END AS Access, 
+				  CASE WHEN FD.is_private = 0 THEN 'N/A' ELSE STUFF ((SELECT '; ' + TMP_PF.users_groups AS 'data()' FROM #tmp_private_fields AS TMP_PF WHERE TMP_PF.field_id =  FD.field_id FOR XML PATH('')), 1, 2, '') END AS [Private Users/Groups], 				  
+				  ISNULL(STUFF ((SELECT '; ' + RFT.field_name AS 'data()' FROM tblXIVRelatedDisplayFields AS RDF WITH (NOLOCK) INNER JOIN tblIVFieldDef AS RFD WITH (NOLOCK) ON RDF.display_field_id = RFD.field_id INNER JOIN tblFieldTranslation AS RFT WITH (NOLOCK) ON RFD.field_id = RFT.field_id WHERE (RDF.field_id = FD.field_id) ORDER BY RDF.column_order FOR XML PATH('')), 1, 2, ''), 'N/A') AS [Cross-Ref/Related Rec/Sub-Form Display Fields],
+				  ISNULL(TMP_CRSD.display_fields, 'N/A') AS [Cross-Ref/Related Rec/Sub-Form Lookup Fields],
+				  ISNULL(FT.default_text, 'N/A') AS	[Default Text], 
+				  ISNULL(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE( FT.field_desc,
+					'<html>', ''),
+					'</html>', ''),
+					'<head>', ''),
+					'</head>', ''),
+					'<body>', ''),
+					'</body>', ''),
+					'<p style="margin: 0px">', ''),
+					'</p>', ''), 
+					'<span style="margin: 0px">', ''),
+					'?</span>', ''), 
+					'?<br />', ''),
+					CHAR(9), ' '), 
+					CHAR(10), ' '), 
+					CHAR(13), ' '), 
+					'') AS [Help Text] 
+FROM     tblIVFieldDef AS FD WITH (NOLOCK) INNER JOIN
+                  tblFieldTranslation AS FT WITH (NOLOCK) ON FD.field_id = FT.field_id INNER JOIN
+                  tblModule AS M WITH (NOLOCK) ON FT.language_id = M.language_id INNER JOIN
+                  tblModuleTranslation AS MT WITH (NOLOCK) ON M.module_id = MT.module_id INNER JOIN
+                  tblLevel AS L WITH (NOLOCK) ON FD.level_id = L.level_id AND M.module_id = L.module_id INNER JOIN
+                  tblLevelTranslation AS LT WITH (NOLOCK) ON L.level_id = LT.level_id INNER JOIN
+                  tblIVFieldType AS FTP WITH (NOLOCK) ON FD.field_type_id = FTP.field_type_id LEFT OUTER JOIN
+                  #tmp_field_attributes AS TMP_FA WITH (NOLOCK) ON FD.field_id = TMP_FA.field_id LEFT OUTER JOIN
+                  #tmp_crossref_relatedrec_subform_lookup AS TMP_CRSD WITH (NOLOCK) ON FD.field_id = TMP_CRSD.field_id LEFT OUTER JOIN
+                  #tmp_on_layout AS TMP_OL WITH (NOLOCK) ON FD.field_id = TMP_OL.field_id
+WHERE  (MT.module_name = N'Risk Register')
+ORDER BY [Aplication Name], [Level Name], [Create DateTime] desc --, [Field Name]
