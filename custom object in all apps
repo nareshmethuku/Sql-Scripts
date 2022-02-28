@@ -1,0 +1,7 @@
+Select lo.layout_obj_id, lot.layout_obj_name as 'Custom Object Name',mt.module_name,lm.layout_module_name as 'Layout Name',lo.update_date AS 'Last Updated' from tblIVLayoutObject lo join tblIVLayoutObjectTranslation lot on lo.layout_obj_id=lot.layout_obj_id
+join tblIVLayoutSection ls on ls.layout_section_id=lo.layout_section_id
+join tblIVLayoutTab lt on lt.layout_tab_id=ls.layout_tab_id join tblIVLayoutModule lm on lm.layout_module_id=lt.layout_module_id
+join tblModuleTranslation mt on mt.module_id=lm.module_id 
+where layout_obj_type_id=5 
+--AND module_name like '%risk%'
+order by module_name,layout_obj_name asc
