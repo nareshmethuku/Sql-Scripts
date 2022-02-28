@@ -1,0 +1,34 @@
+-- Query the Job Engine tables to get details on running calculation job (PhysicalCalculationsWorkflow).
+-- Change the jobtype int eh query to get other running jobs related to other job types like notifications 
+
+;WITH XMLNAMESPACES('http://schemas.microsoft.com/2003/10/Serialization/Arrays' AS a
+,'http://www.w3.org/2001/XMLSchema-instance' AS i 
+,'http://www.w3.org/2001/XMLSchema' AS x
+,'http://schemas.microsoft.com/2003/10/Serialization/' AS z
+,'http://schemas.datacontract.org/2004/07/System.Collections.Generic' AS g
+,'http://schemas.microsoft.com/2003/10/Serialization/Arrays' AS d7p1
+)
+
+SELECT
+  mt.module_name AS ModuleName, lt.level_name AS LevelName
+, j.Endpoint AS ServicesServer, j.process_id AS ProcessId
+, ai.EnqueueTime, ai.StartTime, CONVERT(varchar,(GETUTCDATE() - ai.StartTime),108) AS Elapsed
+, j.named_arguments.value('(/a:ArrayOfKeyValueOfstringanyType[1]/KeyValuePairs[1]/g:KeyValuePairOfstringanyType[2]/g:value[1]/KeyValuePairs[1]/*[1]/*[1]/a:_size[1])', 'nvarchar(max)') AS CalcFieldCount
+, j.named_arguments.value('(/a:ArrayOfKeyValueOfstringanyType[1]/KeyValuePairs[1]/g:KeyValuePairOfstringanyType[2]/g:value[1]/KeyValuePairs[1]/*[1]/*[2]/a:_size[1])', 'nvarchar(max)') AS ContentCount
+, j.named_arguments.query('for $v in data(/a:ArrayOfKeyValueOfstringanyType[1]/KeyValuePairs[1]/g:KeyValuePairOfstringanyType[2]/g:value[1]/KeyValuePairs[1]/*[1]/*[1]/a:_items[1]/*) return if ($v!=0) then $v else ""').value('.', 'nvarchar(max)') AS CalcFields
+, j.named_arguments.query('for $v in data(/a:ArrayOfKeyValueOfstringanyType[1]/KeyValuePairs[1]/g:KeyValuePairOfstringanyType[2]/g:value[1]/KeyValuePairs[1]/*[1]/*[2]/a:_items[1]/*) return if ($v!=0) then $v else ""').value('.', 'nvarchar(max)') AS ContentIds
+, j.JobId, j.JobType, j.JobOrder
+, j.Priority, j.EnqueuedDate, j.Generation, j.ParentJobId, j.root_job_id AS RootJobId, j.job_num_id AS JobNumId
+
+FROM tblAsyncJobQueue j WITH (NOLOCK)
+LEFT OUTER JOIN tblAsyncInstrumentation ai WITH (NOLOCK) ON ai.JobId = j.JobId
+LEFT OUTER JOIN tblDataFeed df WITH (NOLOCK) ON df.datafeed_id = j.named_arguments.value('(/a:ArrayOfKeyValueOfstringanyType[1]/KeyValuePairs[1]/g:KeyValuePairOfstringanyType[1]/g:value[1])', 'nvarchar(max)')
+LEFT OUTER JOIN tblDataFeedHistory dfh WITH (NOLOCK) ON dfh.datafeed_history_id = j.named_arguments.value('(/a:ArrayOfKeyValueOfstringanyType[1]/KeyValuePairs[1]/g:KeyValuePairOfstringanyType[1]/g:value[1])', 'nvarchar(max)')
+LEFT OUTER JOIN tblDataFeed df2 WITH (NOLOCK) ON df2.datafeed_id = dfh.datafeed_id
+LEFT OUTER JOIN tblNotificationTemplate n WITH (NOLOCK) ON n.notification_template_id = j.named_arguments.value('(/a:ArrayOfKeyValueOfstringanyType[1]/KeyValuePairs[1]/g:KeyValuePairOfstringanyType[1]/g:value[1])', 'nvarchar(max)')
+LEFT OUTER JOIN tblLevel l WITH (NOLOCK) ON l.level_id = j.named_arguments.value('(/a:ArrayOfKeyValueOfstringanyType[1]/KeyValuePairs[1]/g:KeyValuePairOfstringanyType[1]/g:value[1])', 'nvarchar(max)')
+LEFT OUTER JOIN tblLevelTranslation lt WITH (NOLOCK) ON lt.level_id = l.level_id
+LEFT OUTER JOIN tblModuleTranslation mt WITH (NOLOCK) ON mt.module_id = l.module_id
+ 
+WHERE j.JobType LIKE '%calculation%' AND Endpoint IS NOT NULL 
+ORDER BY ai.StartTime
