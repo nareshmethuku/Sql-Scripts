@@ -1,0 +1,6 @@
+Select df.datafeed_id, df.datafeed_name, df.is_active, lt.level_name FROM tblDatafeed df
+Inner Join tblDatafeedType dft on dft.datafeed_type_id = df.datafeed_type_id
+Inner Join tblLevel l on l.level_id = df.level_id
+Inner Join tblLevelTranslation lt on lt.level_id = l.level_id
+WHERE dft.datafeed_type_id <> 2
+ORDER BY level_name
